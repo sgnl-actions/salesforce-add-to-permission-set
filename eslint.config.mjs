@@ -12,7 +12,8 @@ export default [
         process: 'readonly',
         Buffer: 'readonly',
         fetch: 'readonly',
-        setTimeout: 'readonly'
+        setTimeout: 'readonly',
+        URL: 'readonly'
       }
     },
     rules: {
@@ -34,7 +35,9 @@ export default [
         describe: 'readonly',
         test: 'readonly',
         expect: 'readonly',
+        beforeAll: 'readonly',
         beforeEach: 'readonly',
+        afterAll: 'readonly',
         afterEach: 'readonly',
         jest: 'readonly',
         global: 'writable'

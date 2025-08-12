@@ -1,37 +1,32 @@
-name: job-template
-description: Template for SGNL JavaScript jobs - replace with your job description
+name: salesforce-add-to-permission-set
+description: Add a user to a permission set in Salesforce
 
 # Input parameters for web form generation
 inputs:
-  target:
+  username:
     type: text
-    description: Target resource identifier (e.g., user email, group ID)
+    description: Salesforce username to add to permission set
     required: true
     validation:
       min: 1
-      max: 100
+      max: 200
 
-  action:
+  permissionSetId:
     type: text
-    description: Action to perform on the target resource
+    description: Salesforce permission set ID (e.g., 0PS000000000001)
     required: true
     validation:
       min: 1
-      max: 50
+      max: 18
 
-  options:
-    type: array
-    description: Additional options for the operation
+  apiVersion:
+    type: text
+    description: Salesforce API version
     required: false
-    item_type: text
+    default: "v61.0"
     validation:
+      min: 1
       max: 10
-
-  dry_run:
-    type: boolean
-    description: Preview changes without executing them
-    required: false
-    default: false
 
 # Expected output structure
 outputs:
@@ -39,10 +34,28 @@ outputs:
     type: text
     description: Operation result (success, failed, recovered, etc.)
 
-  target:
+  username:
     type: text
-    description: The target resource that was processed
+    description: The username that was processed
 
-  processed_at:
-    type: datetime
-    description: When the operation completed (ISO 8601)
+  userId:
+    type: text
+    description: Salesforce user ID that was found
+
+  permissionSetId:
+    type: text
+    description: Permission set ID that was assigned
+
+  assignmentId:
+    type: text
+    description: Permission set assignment ID (if created)
+
+# Required secrets
+secrets:
+  SALESFORCE_ACCESS_TOKEN:
+    description: Salesforce OAuth access token
+
+# Required environment variables
+environment:
+  SALESFORCE_INSTANCE_URL:
+    description: Salesforce instance URL (e.g., https://mycompany.my.salesforce.com)

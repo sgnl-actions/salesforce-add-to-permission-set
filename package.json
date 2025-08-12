@@ -1,7 +1,7 @@
 {
-  "name": "@sgnl/job-template",
+  "name": "@sgnl-actions/salesforce-add-to-permission-set",
   "version": "1.0.0",
-  "description": "Template for SGNL JavaScript jobs",
+  "description": "Add a user to a permission set in Salesforce",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
