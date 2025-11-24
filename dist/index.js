@@ -69,6 +69,7 @@ var script = {
    * @param {string} params.permissionSetId - Permission set ID
    * @param {string} params.apiVersion - API version (optional, defaults to v61.0)
    * @param {Object} context - Execution context with env, secrets, outputs
+   * @param {string} context.secrets.BEARER_AUTH_TOKEN - Bearer token for Salesforce API authentication
    * @returns {Object} Job results
    */
   invoke: async (params, context) => {
@@ -86,22 +87,22 @@ var script = {
     }
 
     // Validate required secrets and environment
-    if (!context.secrets?.SALESFORCE_ACCESS_TOKEN) {
-      throw new Error('SALESFORCE_ACCESS_TOKEN secret is required');
+    if (!context.secrets?.BEARER_AUTH_TOKEN) {
+      throw new Error('BEARER_AUTH_TOKEN secret is required');
     }
 
     if (!context.environment?.SALESFORCE_INSTANCE_URL) {
       throw new Error('SALESFORCE_INSTANCE_URL environment variable is required');
     }
 
-    const { SALESFORCE_ACCESS_TOKEN } = context.secrets;
+    const accessToken = context.secrets.BEARER_AUTH_TOKEN;
     const { SALESFORCE_INSTANCE_URL } = context.environment;
 
     console.log(`Adding user ${username} to permission set ${permissionSetId}`);
 
     // Step 1: Find user by username
     console.log('Step 1: Finding user by username');
-    const userResponse = await findUserByUsername(username, SALESFORCE_INSTANCE_URL, SALESFORCE_ACCESS_TOKEN, apiVersion);
+    const userResponse = await findUserByUsername(username, SALESFORCE_INSTANCE_URL, accessToken, apiVersion);
 
     if (!userResponse.ok) {
       throw new Error(`Failed to query user ${username}: ${userResponse.status} ${userResponse.statusText}`);
@@ -122,7 +123,7 @@ var script = {
       userId,
       permissionSetId,
       SALESFORCE_INSTANCE_URL,
-      SALESFORCE_ACCESS_TOKEN,
+      accessToken,
       apiVersion
     );
 

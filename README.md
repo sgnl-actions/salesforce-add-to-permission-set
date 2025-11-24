@@ -31,7 +31,7 @@ npm run build
 
 The action requires the following secret to be configured:
 
-- **`SALESFORCE_ACCESS_TOKEN`** - A valid Salesforce OAuth access token with the required permissions
+- **`BEARER_AUTH_TOKEN`** - A valid Salesforce OAuth access token with the required permissions
 
 ### Required Environment Variables
 

@@ -19,7 +19,7 @@ describe('Salesforce Add to Permission Set Script', () => {
       SALESFORCE_INSTANCE_URL: 'https://test.my.salesforce.com'
     },
     secrets: {
-      SALESFORCE_ACCESS_TOKEN: 'test-access-token'
+      BEARER_AUTH_TOKEN: 'test-access-token'
     }
   };
 
@@ -176,7 +176,7 @@ describe('Salesforce Add to Permission Set Script', () => {
         secrets: {}
       };
 
-      await expect(script.invoke(params, contextNoToken)).rejects.toThrow('SALESFORCE_ACCESS_TOKEN secret is required');
+      await expect(script.invoke(params, contextNoToken)).rejects.toThrow('BEARER_AUTH_TOKEN secret is required');
     });
 
     test('should throw error for missing instance URL', async () => {
@@ -187,7 +187,7 @@ describe('Salesforce Add to Permission Set Script', () => {
 
       const contextNoUrl = {
         environment: {},
-        secrets: { SALESFORCE_ACCESS_TOKEN: 'test-token' }
+        secrets: { BEARER_AUTH_TOKEN: 'test-token' }
       };
 
       await expect(script.invoke(params, contextNoUrl)).rejects.toThrow('SALESFORCE_INSTANCE_URL environment variable is required');
