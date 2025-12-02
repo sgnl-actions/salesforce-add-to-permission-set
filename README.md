@@ -13,7 +13,7 @@ The action handles duplicate assignments gracefully - if the user already has th
 ## Prerequisites
 
 - Salesforce instance with API access
-- Valid Salesforce OAuth access token with permissions to:
+- Valid authentication with permissions to:
   - Query User records (`SELECT` on User object)
   - Create PermissionSetAssignment records (`INSERT` on PermissionSetAssignment object)
 
@@ -27,15 +27,31 @@ npm run build
 
 ## Configuration
 
-### Required Secrets
+### Authentication
 
-The action requires the following secret to be configured:
+This action supports multiple authentication methods. Configure one of the following:
 
-- **`BEARER_AUTH_TOKEN`** - A valid Salesforce OAuth access token with the required permissions
+#### Bearer Token
+- **`BEARER_AUTH_TOKEN`** (secret) - A valid Salesforce OAuth access token
+
+#### Basic Authentication
+- **`BASIC_USERNAME`** (secret) - Username for basic auth
+- **`BASIC_PASSWORD`** (secret) - Password for basic auth
+
+#### OAuth2 Client Credentials
+- **`OAUTH2_CLIENT_CREDENTIALS_CLIENT_ID`** (environment) - OAuth2 client ID
+- **`OAUTH2_CLIENT_CREDENTIALS_CLIENT_SECRET`** (secret) - OAuth2 client secret
+- **`OAUTH2_CLIENT_CREDENTIALS_TOKEN_URL`** (environment) - Token endpoint URL
+- **`OAUTH2_CLIENT_CREDENTIALS_SCOPE`** (environment) - OAuth2 scope (optional)
+- **`OAUTH2_CLIENT_CREDENTIALS_AUDIENCE`** (environment) - OAuth2 audience (optional)
+- **`OAUTH2_CLIENT_CREDENTIALS_AUTH_STYLE`** (environment) - Auth style: `in_header` or `in_body`
+
+#### OAuth2 Authorization Code
+- **`OAUTH2_AUTHORIZATION_CODE_ACCESS_TOKEN`** (secret) - OAuth2 access token
 
 ### Required Environment Variables
 
-- **`SALESFORCE_INSTANCE_URL`** - Your Salesforce instance URL (e.g., `https://mycompany.my.salesforce.com`)
+- **`ADDRESS`** - Your Salesforce instance URL (e.g., `https://mycompany.my.salesforce.com`)
 
 ### Input Parameters
 
@@ -43,7 +59,7 @@ The action requires the following secret to be configured:
 |-----------|------|----------|-------------|
 | `username` | string | Yes | Salesforce username to add to permission set |
 | `permissionSetId` | string | Yes | Salesforce permission set ID (e.g., `0PS000000000001`) |
-| `apiVersion` | string | No | Salesforce API version (defaults to `v61.0`) |
+| `address` | string | No | Salesforce instance URL (overrides `ADDRESS` environment variable) |
 
 ### Output Structure
 
@@ -78,22 +94,12 @@ console.log(result);
 // }
 ```
 
-### With Custom API Version
-
-```javascript
-const params = {
-  username: 'jane.smith@company.com',
-  permissionSetId: '0PS000000000002',
-  apiVersion: 'v60.0'
-};
-```
-
 ## API Endpoints Used
 
 This action makes the following Salesforce API calls:
 
-1. **User Query**: `GET /services/data/{apiVersion}/query?q=SELECT+Id+FROM+User+WHERE+Username+LIKE+'{username}'+ORDER+BY+Id+ASC`
-2. **Permission Set Assignment**: `POST /services/data/{apiVersion}/sobjects/PermissionSetAssignment`
+1. **User Query**: `GET /services/data/v61.0/query?q=SELECT+Id+FROM+User+WHERE+Username+LIKE+'{username}'+ORDER+BY+Id+ASC`
+2. **Permission Set Assignment**: `POST /services/data/v61.0/sobjects/PermissionSetAssignment`
 
 ## Development
 
@@ -130,14 +136,14 @@ npm run lint:fix
 
 The action implements comprehensive error handling:
 
-### Retryable Errors
-- **429 (Rate Limit)**: Automatically retried with 5-second delay
-- **502/503/504 (Server Errors)**: Automatically retried with 5-second delay
+### Error Behavior
+All errors are re-thrown to allow the SGNL framework to handle retry logic based on the configured retry policy.
 
-### Fatal Errors
-- **401/403 (Authentication/Authorization)**: No retry, immediate failure
-- **Missing required parameters**: No retry, immediate failure
-- **User not found**: No retry, immediate failure
+### Common Errors
+- **401/403 (Authentication/Authorization)**: Invalid or expired credentials
+- **Missing required parameters**: username or permissionSetId not provided
+- **User not found**: Specified username does not exist in Salesforce
+- **Invalid permission set ID**: Permission set ID format is incorrect
 
 ### Duplicate Assignment Handling
 When a user already has the permission set assigned, Salesforce returns a 400 error with `DUPLICATE_VALUE` error code. The action treats this as a success condition since the desired state (user has the permission set) is already achieved.
@@ -145,25 +151,31 @@ When a user already has the permission set assigned, Salesforce returns a 400 er
 ## Security Considerations
 
 - **URL Encoding**: Username is properly URL-encoded in SOQL queries to prevent injection attacks
-- **Bearer Token**: Access token is sent as Bearer authentication header
+- **Secure Authentication**: Credentials are handled securely through the authentication framework
 - **Input Validation**: All required parameters are validated before API calls
-- **No Sensitive Logging**: Access tokens and user data are not logged in plaintext
+- **No Sensitive Logging**: Credentials and sensitive user data are not logged in plaintext
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **"User not found" error**: Verify the username exists and is spelled correctly
-2. **"401 Unauthorized"**: Check that the access token is valid and not expired
-3. **"403 Forbidden"**: Ensure the access token has permissions to query Users and create PermissionSetAssignments
+2. **"401 Unauthorized"**: Check that your credentials are valid and not expired
+3. **"403 Forbidden"**: Ensure your credentials have permissions to query Users and create PermissionSetAssignments
 4. **"Invalid permission set ID"**: Verify the permission set ID format (should be 15 or 18 characters starting with "0PS")
+5. **"No authentication configured"**: Ensure you have configured one of the supported authentication methods
 
-### Testing Access Token
+### Testing Authentication
 
-You can test your access token manually:
+You can test your authentication manually:
 
 ```bash
+# For Bearer Token
 curl -H "Authorization: Bearer YOUR_TOKEN" \
+     "https://your-instance.my.salesforce.com/services/data/v61.0/sobjects/"
+
+# For Basic Authentication
+curl -u "USERNAME:PASSWORD" \
      "https://your-instance.my.salesforce.com/services/data/v61.0/sobjects/"
 ```
 
@@ -175,9 +187,8 @@ The test suite covers:
 - ✅ User not found scenarios
 - ✅ API authentication failures
 - ✅ URL encoding of special characters in usernames
-- ✅ Custom API version usage
 - ✅ Input validation
-- ✅ Error handler retry logic
+- ✅ Error handler behavior
 
 Run tests with:
 ```bash
