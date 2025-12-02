@@ -16,10 +16,10 @@ describe('Salesforce Add to Permission Set Script', () => {
 
   const mockContext = {
     environment: {
-      SALESFORCE_INSTANCE_URL: 'https://test.my.salesforce.com'
+      ADDRESS: 'https://test.my.salesforce.com'
     },
     secrets: {
-      SALESFORCE_ACCESS_TOKEN: 'test-access-token'
+      BEARER_AUTH_TOKEN: 'test-access-token'
     }
   };
 
@@ -96,33 +96,6 @@ describe('Salesforce Add to Permission Set Script', () => {
       expect(result.assignmentId).toBeNull();
     });
 
-    test('should use custom API version', async () => {
-      const params = {
-        username: 'test.user@example.com',
-        permissionSetId: '0PS000000000001',
-        apiVersion: 'v60.0'
-      };
-
-      // Mock user query response
-      mockResponses.push({
-        ok: true,
-        json: async () => ({
-          records: [{ Id: '005000000000001' }]
-        })
-      });
-
-      // Mock permission set assignment response
-      mockResponses.push({
-        status: 201,
-        json: async () => ({ id: 'PSA000000000001' })
-      });
-
-      const result = await script.invoke(params, mockContext);
-
-      expect(result.status).toBe('success');
-      expect(result.userId).toBe('005000000000001');
-    });
-
     test('should URL encode username in query', async () => {
       const params = {
         username: 'test+user@example.com',
@@ -165,18 +138,18 @@ describe('Salesforce Add to Permission Set Script', () => {
       await expect(script.invoke(params, mockContext)).rejects.toThrow('permissionSetId is required');
     });
 
-    test('should throw error for missing access token', async () => {
+    test('should throw error for missing authentication', async () => {
       const params = {
         username: 'test.user@example.com',
         permissionSetId: '0PS000000000001'
       };
 
-      const contextNoToken = {
-        environment: { SALESFORCE_INSTANCE_URL: 'https://test.my.salesforce.com' },
+      const contextNoAuth = {
+        environment: { ADDRESS: 'https://test.my.salesforce.com' },
         secrets: {}
       };
 
-      await expect(script.invoke(params, contextNoToken)).rejects.toThrow('SALESFORCE_ACCESS_TOKEN secret is required');
+      await expect(script.invoke(params, contextNoAuth)).rejects.toThrow('No authentication configured');
     });
 
     test('should throw error for missing instance URL', async () => {
@@ -187,10 +160,10 @@ describe('Salesforce Add to Permission Set Script', () => {
 
       const contextNoUrl = {
         environment: {},
-        secrets: { SALESFORCE_ACCESS_TOKEN: 'test-token' }
+        secrets: { BEARER_AUTH_TOKEN: 'test-token' }
       };
 
-      await expect(script.invoke(params, contextNoUrl)).rejects.toThrow('SALESFORCE_INSTANCE_URL environment variable is required');
+      await expect(script.invoke(params, contextNoUrl)).rejects.toThrow('No URL specified. Provide address parameter or ADDRESS environment variable');
     });
 
     test('should throw error when user not found', async () => {
@@ -275,66 +248,13 @@ describe('Salesforce Add to Permission Set Script', () => {
   });
 
   describe('error handler', () => {
-    test('should request retry for rate limit error (429)', async () => {
-      const params = {
-        error: { message: 'Rate limit exceeded: 429' }
-      };
-
-      const result = await script.error(params, mockContext);
-      expect(result.status).toBe('retry_requested');
-    });
-
-    test('should request retry for server errors (502, 503, 504)', async () => {
-      const serverErrors = ['502', '503', '504'];
-
-      for (const errorCode of serverErrors) {
-        const params = {
-          error: { message: `Server error: ${errorCode}` }
-        };
-
-        const result = await script.error(params, mockContext);
-        expect(result.status).toBe('retry_requested');
-      }
-    });
-
-    test('should throw error for auth failures (401, 403)', async () => {
-      const authErrors = ['401', '403'];
-
-      for (const errorCode of authErrors) {
-        const originalError = new Error(`Auth failed: ${errorCode}`);
-        const params = {
-          error: originalError
-        };
-
-        await expect(script.error(params, mockContext)).rejects.toThrow(originalError);
-      }
-    });
-
-    test('should throw error for validation failures', async () => {
-      const originalError = new Error('username is required');
+    test('should rethrow error', async () => {
+      const originalError = new Error('Test error');
       const params = {
         error: originalError
       };
 
       await expect(script.error(params, mockContext)).rejects.toThrow(originalError);
-    });
-
-    test('should throw error for not found failures', async () => {
-      const originalError = new Error('User not found: test@example.com');
-      const params = {
-        error: originalError
-      };
-
-      await expect(script.error(params, mockContext)).rejects.toThrow(originalError);
-    });
-
-    test('should request retry for other errors', async () => {
-      const params = {
-        error: { message: 'Unknown network error' }
-      };
-
-      const result = await script.error(params, mockContext);
-      expect(result.status).toBe('retry_requested');
     });
   });
 

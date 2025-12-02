@@ -6,23 +6,24 @@
  * 2. Create a permission set assignment
  */
 
+import { getBaseUrl, getAuthorizationHeader } from '@sgnl-actions/utils';
+
 /**
  * Helper function to find user by username
  * @param {string} username - Salesforce username
- * @param {string} instanceUrl - Salesforce instance URL
- * @param {string} accessToken - Salesforce access token
- * @param {string} apiVersion - Salesforce API version
+ * @param {string} baseUrl - Salesforce instance URL
+ * @param {string} authHeader - Authorization header value
  * @returns {Promise<Response>} API response
  */
-async function findUserByUsername(username, instanceUrl, accessToken, apiVersion) {
+async function findUserByUsername(username, baseUrl, authHeader) {
   const encodedUsername = encodeURIComponent(username);
   const query = `SELECT+Id+FROM+User+WHERE+Username+LIKE+'${encodedUsername}'+ORDER+BY+Id+ASC`;
-  const url = new URL(`/services/data/${apiVersion}/query?q=${query}`, instanceUrl);
+  const url = `${baseUrl}/services/data/v61.0/query?q=${query}`;
 
-  const response = await fetch(url.toString(), {
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
+      'Authorization': authHeader,
       'Accept': 'application/json'
     }
   });
@@ -34,18 +35,17 @@ async function findUserByUsername(username, instanceUrl, accessToken, apiVersion
  * Helper function to create permission set assignment
  * @param {string} userId - Salesforce user ID
  * @param {string} permissionSetId - Permission set ID
- * @param {string} instanceUrl - Salesforce instance URL
- * @param {string} accessToken - Salesforce access token
- * @param {string} apiVersion - Salesforce API version
+ * @param {string} baseUrl - Salesforce instance URL
+ * @param {string} authHeader - Authorization header value
  * @returns {Promise<Response>} API response
  */
-async function createPermissionSetAssignment(userId, permissionSetId, instanceUrl, accessToken, apiVersion) {
-  const url = new URL(`/services/data/${apiVersion}/sobjects/PermissionSetAssignment`, instanceUrl);
+async function createPermissionSetAssignment(userId, permissionSetId, baseUrl, authHeader) {
+  const url = `${baseUrl}/services/data/v61.0/sobjects/PermissionSetAssignment`;
 
-  const response = await fetch(url.toString(), {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
+      'Authorization': authHeader,
       'Accept': 'application/json',
       'Content-Type': 'application/json'
     },
@@ -64,15 +64,32 @@ export default {
    * @param {Object} params - Job input parameters
    * @param {string} params.username - Salesforce username
    * @param {string} params.permissionSetId - Permission set ID
-   * @param {string} params.apiVersion - API version (optional, defaults to v61.0)
-   * @param {Object} context - Execution context with env, secrets, outputs
-   * @returns {Object} Job results
+   * @param {string} params.address - Optional Salesforce API base URL
+   * @param {Object} context - Execution context with secrets and environment
+   * @param {string} context.environment.ADDRESS - Default Salesforce API base URL
+   *
+   * The configured auth type will determine which of the following environment variables and secrets are available
+   * @param {string} context.secrets.BEARER_AUTH_TOKEN
+   *
+   * @param {string} context.secrets.BASIC_USERNAME
+   * @param {string} context.secrets.BASIC_PASSWORD
+   *
+   * @param {string} context.secrets.OAUTH2_CLIENT_CREDENTIALS_CLIENT_SECRET
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_AUDIENCE
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_AUTH_STYLE
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_CLIENT_ID
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_SCOPE
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_TOKEN_URL
+   *
+   * @param {string} context.secrets.OAUTH2_AUTHORIZATION_CODE_ACCESS_TOKEN
+   *
+   * @returns {Promise<Object>} Action result
    */
   invoke: async (params, context) => {
     console.log('Starting Salesforce permission set assignment');
 
     // Validate required parameters
-    const { username, permissionSetId, apiVersion = 'v61.0' } = params;
+    const { username, permissionSetId } = params;
 
     if (!username) {
       throw new Error('username is required');
@@ -82,23 +99,17 @@ export default {
       throw new Error('permissionSetId is required');
     }
 
-    // Validate required secrets and environment
-    if (!context.secrets?.SALESFORCE_ACCESS_TOKEN) {
-      throw new Error('SALESFORCE_ACCESS_TOKEN secret is required');
-    }
+    // Get base URL using utility function
+    const baseUrl = getBaseUrl(params, context);
 
-    if (!context.environment?.SALESFORCE_INSTANCE_URL) {
-      throw new Error('SALESFORCE_INSTANCE_URL environment variable is required');
-    }
-
-    const { SALESFORCE_ACCESS_TOKEN } = context.secrets;
-    const { SALESFORCE_INSTANCE_URL } = context.environment;
+    // Get authorization header
+    const authHeader = await getAuthorizationHeader(context);
 
     console.log(`Adding user ${username} to permission set ${permissionSetId}`);
 
     // Step 1: Find user by username
     console.log('Step 1: Finding user by username');
-    const userResponse = await findUserByUsername(username, SALESFORCE_INSTANCE_URL, SALESFORCE_ACCESS_TOKEN, apiVersion);
+    const userResponse = await findUserByUsername(username, baseUrl, authHeader);
 
     if (!userResponse.ok) {
       throw new Error(`Failed to query user ${username}: ${userResponse.status} ${userResponse.statusText}`);
@@ -118,9 +129,8 @@ export default {
     const assignmentResponse = await createPermissionSetAssignment(
       userId,
       permissionSetId,
-      SALESFORCE_INSTANCE_URL,
-      SALESFORCE_ACCESS_TOKEN,
-      apiVersion
+      baseUrl,
+      authHeader
     );
 
     let assignmentId = null;
@@ -166,31 +176,7 @@ export default {
    */
   error: async (params, _context) => {
     const { error } = params;
-    console.error(`Error in permission set assignment: ${error.message}`);
-
-    // Check for retryable errors (rate limits, server errors)
-    if (error.message.includes('429') ||
-        error.message.includes('502') ||
-        error.message.includes('503') ||
-        error.message.includes('504')) {
-
-      console.log('Retryable error detected, waiting before retry');
-      // In production: await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // Let the framework retry
-      return { status: 'retry_requested' };
-    }
-
-    // Fatal errors (auth, validation) should not retry
-    if (error.message.includes('401') ||
-        error.message.includes('403') ||
-        error.message.includes('is required') ||
-        error.message.includes('not found')) {
-      throw error;
-    }
-
-    // Default: let framework retry
-    return { status: 'retry_requested' };
+    throw error;
   },
 
   /**
