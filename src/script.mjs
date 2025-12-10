@@ -6,7 +6,7 @@
  * 2. Create a permission set assignment
  */
 
-import { getBaseUrl, getAuthorizationHeader } from '@sgnl-actions/utils';
+import { getBaseURL, getAuthorizationHeader, resolveJSONPathTemplates} from '@sgnl-actions/utils';
 
 /**
  * Helper function to find user by username
@@ -87,9 +87,17 @@ export default {
    */
   invoke: async (params, context) => {
     console.log('Starting Salesforce permission set assignment');
+    const jobContext = context.data || {};
+
+    // Resolve JSONPath templates in params
+    const { result: resolvedParams, errors } = resolveJSONPathTemplates(params, jobContext);
+    if (errors.length > 0) {
+      throw new Error(`Failed to resolve template values: ${errors.join(', ')}`);
+    }
+
 
     // Validate required parameters
-    const { username, permissionSetId } = params;
+    const { username, permissionSetId } = resolvedParams;
 
     if (!username) {
       throw new Error('username is required');
@@ -100,7 +108,7 @@ export default {
     }
 
     // Get base URL using utility function
-    const baseUrl = getBaseUrl(params, context);
+    const baseUrl = getBaseURL(resolvedParams, context);
 
     // Get authorization header
     const authHeader = await getAuthorizationHeader(context);
