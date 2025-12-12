@@ -96,16 +96,7 @@ export default {
     }
 
 
-    // Validate required parameters
     const { username, permissionSetId } = resolvedParams;
-
-    if (!username) {
-      throw new Error('username is required');
-    }
-
-    if (!permissionSetId) {
-      throw new Error('permissionSetId is required');
-    }
 
     // Get base URL using utility function
     const baseUrl = getBaseURL(resolvedParams, context);
@@ -172,7 +163,8 @@ export default {
       username: username,
       userId: userId,
       permissionSetId: permissionSetId,
-      assignmentId: assignmentId
+      assignmentId: assignmentId,
+      address: baseUrl
     };
   },
 
