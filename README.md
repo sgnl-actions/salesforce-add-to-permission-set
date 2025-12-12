@@ -73,16 +73,14 @@ This action supports multiple authentication methods. Configure one of the follo
 
 ### Output Structure
 
-```javascript
-{
-  status: 'success',
-  username: 'user@example.com',
-  userId: '005000000000001',
-  permissionSetId: '0PS000000000001',
-  assignmentId: 'PSA000000000001',  // null if user already had permission set
-  address: 'https://mycompany.my.salesforce.com'
-}
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Operation result (success, failed, recovered, etc.) |
+| `username` | string | The username that was processed |
+| `userId` | string | Salesforce user ID that was found |
+| `permissionSetId` | string | Permission set ID that was assigned |
+| `assignmentId` | string | Permission set assignment ID (null if user already had permission set) |
+| `address` | string | The Salesforce API base URL used |
 
 ## Usage Examples
 
