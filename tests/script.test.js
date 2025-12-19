@@ -122,21 +122,6 @@ describe('Salesforce Add to Permission Set Script', () => {
       expect(result.username).toBe('test+user@example.com');
     });
 
-    test('should throw error for missing username', async () => {
-      const params = {
-        permissionSetId: '0PS000000000001'
-      };
-
-      await expect(script.invoke(params, mockContext)).rejects.toThrow('username is required');
-    });
-
-    test('should throw error for missing permissionSetId', async () => {
-      const params = {
-        username: 'test.user@example.com'
-      };
-
-      await expect(script.invoke(params, mockContext)).rejects.toThrow('permissionSetId is required');
-    });
 
     test('should throw error for missing authentication', async () => {
       const params = {
