@@ -1,4 +1,5 @@
 import script from '../src/script.mjs';
+import { SGNL_USER_AGENT } from '@sgnl-actions/utils'; 
 
 describe('Salesforce Add to Permission Set Script', () => {
   let mockResponses;
@@ -8,7 +9,8 @@ describe('Salesforce Add to Permission Set Script', () => {
     originalConsole = { log: console.log, error: console.error };
 
     // Simple fetch mock that uses responses in order
-    global.fetch = (_url, _options) => {
+    global.fetch = (_url, options) => {
+      global.fetch.lastOptions = options;
       const response = mockResponses.shift();
       return Promise.resolve(response);
     };
@@ -62,6 +64,8 @@ describe('Salesforce Add to Permission Set Script', () => {
       expect(result.userId).toBe('005000000000001');
       expect(result.permissionSetId).toBe('0PS000000000001');
       expect(result.assignmentId).toBe('PSA000000000001');
+
+      expect(global.fetch.lastOptions.headers['User-Agent']).toBe(SGNL_USER_AGENT);
     });
 
     test('should handle duplicate assignment (400 error)', async () => {
