@@ -6,7 +6,7 @@
  * 2. Create a permission set assignment
  */
 
-import { getBaseURL, getAuthorizationHeader} from '@sgnl-actions/utils';
+import { getBaseURL, getAuthorizationHeader } from '@sgnl-actions/utils';
 
 /**
  * Helper function to find user by username
