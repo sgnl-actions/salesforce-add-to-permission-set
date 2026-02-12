@@ -9,6 +9,11 @@
  */
 
 /**
+ * User-Agent header value for all SGNL CAEP Hub requests.
+ */
+const SGNL_USER_AGENT = 'SGNL-CAEP-Hub/2.0';
+
+/**
  * Get OAuth2 access token using client credentials flow
  * @param {Object} config - OAuth2 configuration
  * @param {string} config.tokenUrl - Token endpoint URL
@@ -39,7 +44,8 @@ async function getClientCredentialsToken(config) {
 
   const headers = {
     'Content-Type': 'application/x-www-form-urlencoded',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
+    'User-Agent': SGNL_USER_AGENT
   };
 
   if (authStyle === 'InParams') {
@@ -158,6 +164,21 @@ function getBaseURL(params, context) {
 }
 
 /**
+ * Create full headers object with Authorization and common headers
+ * @param {Object} context - Execution context with env and secrets
+ * @returns {Promise<Object>} Headers object with Authorization, Accept, Content-Type
+ */
+async function createAuthHeaders(context) {
+  const authHeader = await getAuthorizationHeader(context);
+  return {
+    'Authorization': authHeader,
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'User-Agent': SGNL_USER_AGENT
+  };
+}
+
+/**
  * Salesforce Add to Permission Set Action
  *
  * Adds a user to a permission set in Salesforce using a two-step process:
@@ -173,17 +194,14 @@ function getBaseURL(params, context) {
  * @param {string} authHeader - Authorization header value
  * @returns {Promise<Response>} API response
  */
-async function findUserByUsername(username, baseUrl, authHeader) {
+async function findUserByUsername(username, baseUrl, headers) {
   const encodedUsername = encodeURIComponent(username);
   const query = `SELECT+Id+FROM+User+WHERE+Username+LIKE+'${encodedUsername}'+ORDER+BY+Id+ASC`;
   const url = `${baseUrl}/services/data/v61.0/query?q=${query}`;
 
   const response = await fetch(url, {
     method: 'GET',
-    headers: {
-      'Authorization': authHeader,
-      'Accept': 'application/json'
-    }
+    headers
   });
 
   return response;
@@ -197,16 +215,12 @@ async function findUserByUsername(username, baseUrl, authHeader) {
  * @param {string} authHeader - Authorization header value
  * @returns {Promise<Response>} API response
  */
-async function createPermissionSetAssignment(userId, permissionSetId, baseUrl, authHeader) {
+async function createPermissionSetAssignment(userId, permissionSetId, baseUrl, headers) {
   const url = `${baseUrl}/services/data/v61.0/sobjects/PermissionSetAssignment`;
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    },
+    headers,
     body: JSON.stringify({
       AssigneeId: userId,
       PermissionSetId: permissionSetId
@@ -252,13 +266,13 @@ var script = {
     const baseUrl = getBaseURL(params, context);
 
     // Get authorization header
-    const authHeader = await getAuthorizationHeader(context);
+    const headers = await createAuthHeaders(context);
 
     console.log(`Adding user ${username} to permission set ${permissionSetId}`);
 
     // Step 1: Find user by username
     console.log('Step 1: Finding user by username');
-    const userResponse = await findUserByUsername(username, baseUrl, authHeader);
+    const userResponse = await findUserByUsername(username, baseUrl, headers);
 
     if (!userResponse.ok) {
       throw new Error(`Failed to query user ${username}: ${userResponse.status} ${userResponse.statusText}`);
@@ -279,7 +293,7 @@ var script = {
       userId,
       permissionSetId,
       baseUrl,
-      authHeader
+      headers
     );
 
     let assignmentId = null;
