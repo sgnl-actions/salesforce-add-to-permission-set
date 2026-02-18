@@ -1,5 +1,5 @@
 import script from '../src/script.mjs';
-import { SGNL_USER_AGENT } from '@sgnl-actions/utils'; 
+import { SGNL_USER_AGENT } from '@sgnl-actions/utils';
 
 describe('Salesforce Add to Permission Set Script', () => {
   let mockResponses;
