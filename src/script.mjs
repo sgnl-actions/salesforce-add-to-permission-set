@@ -6,7 +6,7 @@
  * 2. Create a permission set assignment
  */
 
-import { getBaseURL, createAuthHeaders } from '@sgnl-actions/utils';
+import { getBaseURL, createHeaders } from '@sgnl-actions/utils';
 
 /**
  * Helper function to find user by username
@@ -87,7 +87,7 @@ export default {
     const baseUrl = getBaseURL(params, context);
 
     // Get authorization header
-    const headers = await createAuthHeaders(context);
+    const headers = await createHeaders(context);
 
     console.log(`Adding user ${username} to permission set ${permissionSetId}`);
 
