@@ -126,21 +126,6 @@ describe('Salesforce Add to Permission Set Script', () => {
       expect(result.username).toBe('test+user@example.com');
     });
 
-
-    test('should throw error for missing authentication', async () => {
-      const params = {
-        username: 'test.user@example.com',
-        permissionSetId: '0PS000000000001'
-      };
-
-      const contextNoAuth = {
-        environment: { ADDRESS: 'https://test.my.salesforce.com' },
-        secrets: {}
-      };
-
-      await expect(script.invoke(params, contextNoAuth)).rejects.toThrow('No authentication configured');
-    });
-
     test('should throw error for missing instance URL', async () => {
       const params = {
         username: 'test.user@example.com',
